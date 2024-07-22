@@ -1,0 +1,32 @@
+* OpenAI API
+
+Just another simple library to interface with OpenAI's API.
+
+Does not support streaming or anything fancy.
+
+You can either pass the API key directly as a string or read it from
+your ~.authinfo.gpg~ file, if you store it that way.
+#+begin_src nim
+let client = newOpenAIClient(apiKey, "MainAPIKey")
+let response = client.completion("You are a helpful assistant.", "Hello, how are you?")
+echo response
+#+end_src
+
+For the latter:
+#+begin_src nim
+let decryptedContent = decryptFile("/home/foobar/.authinfo.gpg")
+let apiKey = extractAPIKey(decryptedContent)
+#+end_src
+
+But feel free to do it in any other way. :)
+
+You can turn the response into a typed object:
+#+begin_src nim
+let resOb = response.to(OpenAIResponse)
+#+end_src
+which may be more convenient to work with.
+
+~completion~ is the only actual function of interest for usage. Adding
+other parts of the API would be trivial of course. We default to
+~gpt-4o-mini~, a temperature of 0 and ~8192~ max output tokens (the
+max). 

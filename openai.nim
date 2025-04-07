@@ -37,6 +37,12 @@ type
     usage*: Usage
     system_fingerprint*: string
 
+  ## TODO: Could have an enum for the `role` field
+  Content* = object
+    role*: string
+    content*: string
+
+
 proc `=destroy`*(o: OpenAIClientObj) =
   o.client.close()
   `=destroy`(o.client)
@@ -66,18 +72,22 @@ proc sendRequest(cl: OpenAIClient, endpoint: string, body: JsonNode): JsonNode =
 
   return parseJson(response.body)
 
-proc completion*(client: OpenAIClient, systemPrompt, prompt: string, model: string = "gpt-4o-mini", maxTokens: int = 8192, temperature = 0.0): JsonNode =
+proc completion*(client: OpenAIClient, systemPrompt, prompt: string,
+                 contents: seq[Content], model: string = "gpt-4o-mini",
+                 maxTokens: int = 8192, temperature = 0.0): JsonNode =
   ## Sends a completion request to the OpenAI API.
   let sys = %*{
     "role" : "system",
     "content" : systemPrompt
     }
-  let msg = %*{
+
+  var msgs = % [sys]
+  for el in contents:
+    msgs.add %el
+  msgs.add %*{
     "role" : "user",
     "content" : prompt
-    }
-
-  let msgs = % [sys, msg]
+  }
 
   let body = %*{
     "model": model,
@@ -85,12 +95,20 @@ proc completion*(client: OpenAIClient, systemPrompt, prompt: string, model: stri
     "max_tokens": maxTokens,
     "temperature" : temperature
   }
+
   result = client.sendRequest("chat/completions", body)
+
+proc completion*(client: OpenAIClient, systemPrompt, prompt: string,
+                 model: string = "gpt-4o-mini", maxTokens: int = 8192,
+                 temperature = 0.0): JsonNode =
+  ## Sends a completion request to the OpenAI API.
+  result = client.completion(systemPrompt, prompt, @[], model, maxTokens, temperature)
 
 proc decryptFile*(filePath: string): string =
   ## Decrypts the GPG file and returns the content as a string.
   let gpgCommand = "gpg --quiet --batch --yes --decrypt " & filePath
-  let (res, err) = shellVerbose:
+  const config: set[DebugOutputKind] = {}
+  let (res, err) = shellVerbose(debug = config):
     ($gpgCommand)
   result = res
 
